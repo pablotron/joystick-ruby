@@ -216,6 +216,22 @@ static VALUE j_dev_name(VALUE self) {
   return Qnil;
 }
 
+/*
+ * Return the file descriptor of this Joystick::Device object.
+ *
+ * Example:
+ *   fd = joy.fd
+ *
+ */
+static VALUE j_dev_fd(VALUE self) {
+  int *fd;
+
+  Data_Get_Struct(self, int, fd);
+  if (fd && *fd >= 0)
+    return INT2FIX(*fd);
+
+  return Qnil;
+}
 
 /***************************/
 /* Joystick::Event methods */
@@ -341,6 +357,10 @@ void Init_joystick(void) {
   rb_define_alias(cDev, "num_buttons", "buttons");
 
   rb_define_method(cDev, "name", j_dev_name, 0);
+  
+  rb_define_method(cDev, "fd", j_dev_fd, 0);
+  rb_define_alias(cDev, "descriptor", "fd");
+  rb_define_alias(cDev, "file_descriptor", "fd");
   
   rb_define_method(cDev, "close", j_dev_close, 0);
 
