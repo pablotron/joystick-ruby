@@ -20,6 +20,9 @@ static struct js_event evs[MAX_JOYSTICKS];
 
 static void dont_free(void *ptr) { UNUSED(ptr); }
 
+/****************************/
+/* Joystick::Device methods */
+/*******************(********/
 static void dev_free(void *ptr) {
   int *fd = (int*) ptr;
   if (fd && *fd >= 0)
@@ -51,11 +54,18 @@ static VALUE j_dev_close(VALUE self) {
 /*
  * Open and allocate a new Joystick::Device object.
  *
+ * This method also accepts a block.
+ *
  * Aliases:
  *   Joystick::Device::open
  * 
  * Examples:
  *   joy = Joystick::Device.new '/dev/input/js0'
+ *
+ *   # read a joystick device in block mode
+ *   Joystick::Device::open('/dev/input/js0') { |joy|
+ *     # ... do stuff ...
+ *   }
  *
  */
 VALUE j_dev_new(VALUE klass, VALUE path) {
@@ -65,6 +75,9 @@ VALUE j_dev_new(VALUE klass, VALUE path) {
   block_given = rb_block_given_p();
   if ((fd = malloc(sizeof(int))) != NULL) {
     if ((*fd = open(RSTRING(path)->ptr, O_RDONLY)) >= 0) {
+      if (*fd >= MAX_JOYSTICKS) 
+        rb_raise(rb_eException, "Exceeded maximum joystick descriptor.");
+
       self = Data_Wrap_Struct(klass, 0, dev_free, fd);
       rb_obj_call_init(self, 0, NULL);
 
@@ -114,9 +127,14 @@ static VALUE j_dev_pending(VALUE self) {
 /*
  * Return the next Joystick::Event from a Joystick::Device object.
  *
- * Note: This method will block if no data is waiting to be read, so you
+ * Note: For performance reasons, only one joystick event is allocated
+ * per device.  Calling this method will silently overwrite old events
+ * for this device.
+ *  
+ * This method will block if no data is waiting to be read, so you
  * should probably test the Joystick::Device object with
  * Joystick::Device#pending? before calling this method.
+ *
  *
  * Aliases:
  *   Joystick::Device::ev
@@ -232,6 +250,7 @@ static VALUE j_dev_fd(VALUE self) {
 
   return Qnil;
 }
+
 
 /***************************/
 /* Joystick::Event methods */
